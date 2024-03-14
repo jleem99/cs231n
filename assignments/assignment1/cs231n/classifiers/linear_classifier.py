@@ -13,14 +13,14 @@ class LinearClassifier(object):
         self.W = None
 
     def train(
-        self,
-        X,
-        y,
-        learning_rate=1e-3,
-        reg=1e-5,
-        num_iters=100,
-        batch_size=200,
-        verbose=False,
+            self,
+            X,
+            y,
+            learning_rate=1e-3,
+            reg=1e-5,
+            num_iters=100,
+            batch_size=200,
+            verbose=False,
     ):
         """
         Train this linear classifier using stochastic gradient descent.
@@ -41,7 +41,7 @@ class LinearClassifier(object):
         """
         num_train, dim = X.shape
         num_classes = (
-            np.max(y) + 1
+                np.max(y) + 1
         )  # assume y takes values 0...K-1 where K is number of classes
         if self.W is None:
             # lazily initialize W
@@ -66,7 +66,9 @@ class LinearClassifier(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            batch_indices = np.random.choice(num_train, batch_size, replace=True)
+            X_batch = X[batch_indices]
+            y_batch = y[batch_indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -81,7 +83,7 @@ class LinearClassifier(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            self.W -= grad * learning_rate
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,7 +113,8 @@ class LinearClassifier(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        scores = X @ self.W  # (N, C)
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return y_pred
