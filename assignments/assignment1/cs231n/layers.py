@@ -2,7 +2,6 @@ from builtins import range
 import numpy as np
 
 
-
 def affine_forward(x, w, b):
     """
     Computes the forward pass for an affine (fully-connected) layer.
@@ -28,7 +27,10 @@ def affine_forward(x, w, b):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x_reshaped = x.reshape(x.shape[0], -1)  # ? (N, D)
+
+    # ? out(N, M) = x_reshaped(N, D) @ w(D, M) + b(N: broadcasted, M)
+    out = x_reshaped @ w + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -61,7 +63,23 @@ def affine_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x_reshaped = x.reshape(x.shape[0], -1)  # ? (N, D)
+    d_x_reshaped = np.zeros_like(x_reshaped)
+
+    # ! Backprop: out(N, M) = x_reshaped(N, D) @ w + ...
+    # ? d_x_reshaped(N, D) = dout(N, M) @ w.T(M, D)
+    d_x_reshaped += dout @ w.T
+    # ? d_w(D, M) = x_reshaped.T(D, N) @ dout(N, M)
+    d_w = x_reshaped.T @ dout
+
+    # ! Backprop: out(N, M) = ... + b(N: broadcasted, M)
+    # ? d_b(M,) = np.sum(dout, axis=0)(M,)
+    d_b = np.sum(dout, axis=0)
+
+    # ! Backprop: x_reshaped = x.reshape(x.shape[0], -1)
+    dx = d_x_reshaped.reshape(x.shape)
+
+    (dx, dw, db) = (dx, d_w, d_b)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -87,7 +105,7 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = np.maximum(0, x)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -114,7 +132,9 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # ! Backprop: out = np.maximum(0, x)
+    # ? dx(X_SHAPE) = dout(X_SHAPE) (*: Hadamard) ((x > 0) ? 1 : 0)(X_SHAPE)
+    dx = dout * np.where(x > 0, 1, 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -773,7 +793,35 @@ def svm_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    (N, C) = x.shape
+
+    # *** FORWARD PASS *** #
+
+    scores_true = x[range(N), y][:, np.newaxis]
+    margins = x - scores_true + 1
+    max_margins, _ = relu_forward(margins)
+
+    loss = np.sum(max_margins) / N - 1
+
+    # *** BACKWARD PASS *** #
+
+    # Backprop: loss = np.sum(max_margins) / N - 1
+    d_max_margins = np.ones_like(max_margins) / N
+
+    # Backprop: max_margins, _ = relu_forward(margins)
+    d_margins = relu_backward(d_max_margins, max_margins)
+
+    # Backprop: margins = x(N, C) - ...
+    # ? dx(N, C) = d_margins(N, C)
+    dx = d_margins
+
+    # Backprop: margins(N, C) = ... - scores_true(N, C: broadcasted) + 1
+    # ? d_scores_true(N,) = -np.sum(d_margins, axis=1)(N,)
+    d_scores_true = -np.sum(d_margins, axis=1)
+
+    # Backprop: scores_true(N, 1) = x[range(N), y][:, np.newaxis]
+    # ? dx[range(N), y](N, 1) += d_scores_true(N,)
+    dx[range(N), y] += d_scores_true * 1
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -803,7 +851,38 @@ def softmax_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    (N, C) = x.shape
+    dx = np.zeros_like(x)
+
+    # ** FORWARD PASS ** #
+
+    scores_true = x[range(N), y]  # ? (N,)
+
+    scores_exp = np.exp(x)  # ? (N, C)
+    scores_sum_exp = np.sum(scores_exp, axis=1)  # ? (N,)
+    LSE = np.log(scores_sum_exp)  # ? (N,)
+
+    cross_entropies = -scores_true + LSE  # ? (N,) (L_i)
+    loss = np.mean(cross_entropies)  # ? (1,) (mean of L_i)
+
+    # ** BACKWARD PASS ** #
+
+    # ! Backprop: loss(1,) = np.mean(cross_entropies)(1,)
+    d_cross_entropies = np.full_like(cross_entropies, 1 / N)
+
+    # ! Backprop: cross_entropies = -scores_true + ...
+    d_scores_true = -d_cross_entropies  # ? (N, )
+
+    # ! Backprop: cross_entropies = ... + LSE
+    d_LSE = d_cross_entropies  # ? (N, )
+
+    # ! Backprop: LSE = np.log(np.sum(np.exp(x), axis=1))
+    # ? dx(N, C) += d_LSE(N, )[:, np.newaxis] * (scores_exp(N, C) / scores_sum_exp(N, )[:, np.newaxis])
+    dx += d_LSE[:, np.newaxis] * (scores_exp / scores_sum_exp[:, np.newaxis])
+
+    # ! Backprop: scores_true = x[range(N), y]
+    # ? dx[range(N), y](N, 1) += d_scores_true(N,)
+    dx[range(N), y] += d_scores_true * 1
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
